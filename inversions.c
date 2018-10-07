@@ -9,6 +9,9 @@
  *
  * This is a MEX-file for MATLAB.
  *
+ *
+ * Copyright (c) 2018 Jacob Zavatone-Veth, MIT License
+ *
  *========================================================*/
 
 #include "mex.h"

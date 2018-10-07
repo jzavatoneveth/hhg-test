@@ -40,6 +40,7 @@ function [p, t, pstat] = HHGPermutationTest(X,Y,nrep,maxN)
 %           multivariate test of association based on ranks of distances.
 %           Biometrika, 100(2), 503-510. 
 %
+%   Copyright (c) 2018 Jacob Zavatone-Veth, MIT License
 
 % Set the  number of permutations
 if (nargin < 3) || isempty(nrep)
