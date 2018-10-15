@@ -28,7 +28,8 @@ function [p, t, pstat] = HHGPermutationTest(X,Y,nperm,maxN)
 %           1e4.
 %
 %   Outputs:
-%       'p' - The p-value of the permutation test.
+%       'p' - The p-value of the permutation test. If p < 1/nperm, a value
+%           of zero is returned.
 %
 %       't' - The HHG test statistic.
 %
