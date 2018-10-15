@@ -19,7 +19,7 @@ A [MATLAB-compatible C compiler](https://www.mathworks.com/support/compilers.htm
 4. `maxN`: The maximum sample size for which the full distance matrices will be held in memory. If the sample size exceeds `maxN`, the distance matrices will be computed incrementally and stored on disk.
 
 Once computation is completed, `HHGPermutationTest` returns up to three output arguments:
-1. `p`: The p-value of the permutation test.
+1. `p`: The p-value of the permutation test. If `p < 1/nperm`, a value of 0 is returned.
 2. `t`: The value of the HHG test statistic.
 3. `pstat`: The values of the HHG test statistic for each permutation.
 
