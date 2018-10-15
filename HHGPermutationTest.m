@@ -1,70 +1,75 @@
-function [p, t, pstat] = HHGPermutationTest(X,Y,nrep,maxN)
+function [p, t, pstat] = HHGPermutationTest(X,Y,nperm,maxN)
 %HHGPermutationTest Heller-Heller-Gorfine multivariate test of association
-%   
+%
 %   Syntaxes:
 %       [ p ] = HHGPermutationTest(X,Y) computes the p-value of the HHG
 %           test using 100 permutations for an (Nxm1) matrix X and an
 %           (Nxm2) matrix Y.
 %
-%       [ p ] = HHGPermutationTest(X,Y,nrep) computes the p-value of the
-%           HHG test using nrep permutations
+%       [ p ] = HHGPermutationTest(X,Y,nperm) computes the p-value of the
+%           HHG test using nperm permutations
 %
-%       [ p ] = HHGPermutationTest(X,Y,nrep,maxN) computes the p-value of
+%       [ p ] = HHGPermutationTest(X,Y,nperm,maxN) computes the p-value of
 %           the HHG test while storing at most a (maxN x maxN) distance
-%           matrix in memory. If n > maxN, out-of-core computation is used.
+%           matrix in memory. If n > maxN, incremental computation is used.
 %
 %       [p, t] = HHGPermutationTest(...);
-%       [p, t] = HHGPermutationTest(...);
-%   
+%       [p, t, pstat] = HHGPermutationTest(...);
+%
 %   Inputs:
 %       'X', 'Y' - Input data matrices. Rows are assumed to represent
 %           samples, and columns are assumed to represent dimensions.
-% 
-%       'nrep' - The number of permutations to use in computing the exact
+%
+%       'nperm' - The number of permutations to use in computing the exact
 %           test. The default value is 100.
 %
 %       'maxN' - The maximum number of input samples for which the entire
 %           distance matrix will be stored in memory. The default value is
 %           1e4.
-%       
+%
 %   Outputs:
 %       'p' - The p-value of the permutation test.
 %
 %       't' - The HHG test statistic.
 %
-%       'pstat' - A nrep by 1 vector of the HHG test statistics for each
+%       'pstat' - A nperm by 1 vector of the HHG test statistics for each
 %           permutation.
 %
 %   References:
 %       [1] - Heller, R., Heller, Y., & Gorfine, M. (2012). A consistent
 %           multivariate test of association based on ranks of distances.
-%           Biometrika, 100(2), 503-510. 
+%           Biometrika, 100(2), 503-510.
 %
 %   Copyright (c) 2018 Jacob Zavatone-Veth, MIT License
 
 % Set the  number of permutations
-if (nargin < 3) || isempty(nrep)
-    nrep = 100;
-elseif (~isscalar(nrep)) || (rem(nrep,1) > 0) || (nrep < 1)
+if (nargin < 3) || isempty(nperm)
+    nperm = 100;
+elseif (~isscalar(nperm)) || (rem(nperm,1) > 0) || (nperm < 1)
     error('The number of permutations must be a scalar integer greater than or equal to 1.');
 end
 
-% Set the maximum number points for which the full NxN distance matrix will
-% be held in memory
+% Set the maximum sample size for which the full NxN distance matrix will
+% be held in memory 
 if (nargin < 4) || isempty(maxN)
     maxN = 1e4;
 elseif (~isscalar(maxN)) || (rem(maxN,1) > 0) || (maxN < 1)
     error('The maximum number of points for in-memory computation must be a scalar integer greater than or equal to 1.');
 end
 
+% Check that the input matrices contain the same number of samples
+if (size(X,1) ~= size(Y,1))
+    error('Input matrices must contain the same number of samples.');
+end
+
 % Get the number of samples
 n = size(X,1);
 
 % Get the field width of the number of permutations
-ndig = 1+floor(log10(nrep));
+ndig = 1+floor(log10(nperm));
 
 % Allocate a container to store the values of the test statistic for each permutation
-pstat = nan(nrep,1);
+pstat = nan(nperm,1);
 
 % Start a timer
 tAll = tic;
@@ -83,17 +88,17 @@ if n < maxN
     fprintf('Computed test statistic: %f seconds elapsed.\n', toc(tAll));
     
     % Compute the distribution of the test statistic under permutation of y
-    for ind = 1:nrep
+    for ind = 1:nperm
         idx = randperm(n);
         pstat(ind) = hhgTestStatisticFromFullDistanceMatrices(dx, dy(idx,idx));
-        fprintf('Permutation %*d of %d: %f seconds elapsed.\n', ndig, ind, nrep, toc(tAll));
+        fprintf('Permutation %*d of %d: %f seconds elapsed.\n', ndig, ind, nperm, toc(tAll));
     end
     
 else
     
     % If we fall into this case, the distance matrix is too large, and we
     % must compute the test statistic incrementally.
-    fprintf('%d points: using out-of-core algorithm.\n', n);
+    fprintf('%d points: using incremental algorithm.\n', n);
     
     % Incrementally compute distance matrices and write them to files
     [ posx, posy ] = hhgDistanceMatrixToFile(X,Y);
@@ -104,10 +109,10 @@ else
     fprintf('Computed test statistic: %f seconds elapsed.\n', toc(tAll));
     
     % Compute the distribution of the test statistic under permutation of y
-    for ind = 1:nrep
+    for ind = 1:nperm
         idx = randperm(n);
         pstat(ind) = hhgTestStatisticIncremental(posx,posy,idx);
-        fprintf('Permutation %*d of %d: %f seconds elapsed.\n', ndig, ind, nrep, toc(tAll));
+        fprintf('Permutation %*d of %d: %f seconds elapsed.\n', ndig, ind, nperm, toc(tAll));
     end
     
     % Delete temporary files
@@ -117,7 +122,7 @@ else
 end
 
 % Compute the p-value
-p = nnz(pstat >= t) / nrep;
+p = nnz(pstat >= t) / nperm;
 
 % Print a timing message to the terminal
 fprintf('Computation finished in %f seconds\n', toc(tAll));
@@ -219,7 +224,7 @@ end
 
 function [ t ] = hhgTestStatisticIncremental(posx, posy, idx)
 % Local utility function to compute the HHG test statistic incrementally
-% using an out-of-core algorithm
+% from distance matrices stored on disk
 
 % Get the number of samples
 n = size(posx,1);
@@ -286,7 +291,7 @@ end
 fclose(fx);
 fclose(fy);
 
-% Adjust the test statistic appropriately
+% Adjust the test statistic
 t = (n-2)*t;
 
 end
